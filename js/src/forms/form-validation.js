@@ -1,81 +1,98 @@
 /**
  * --------------------------------------------------------------------------
- * Bootstrap (v5.0.1): util/backdrop.js
+ * Bootstrap (v5.0.1): util/form.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
  * --------------------------------------------------------------------------
  */
 import BaseComponent from '../base-component'
 import EventHandler from '../dom/event-handler'
-import { getElementFromSelector } from '../util'
-import Data from '../dom/data'
+import { getUID } from '../util/index'
+import Field from './field'
 
 const NAME = 'formValidation'
 const DATA_KEY = 'bs.formValidation'
 const EVENT_KEY = `.${DATA_KEY}`
 const DATA_API_KEY = '.data-api'
 
-const SELECTOR_DATA_TOGGLE = '[data-bs-toggle="form"]'
+// const SELECTOR_DATA_TOGGLE = '[data-bs-toggle="form"]'
 
 class FormValidation extends BaseComponent {
-  constructor(element, config) {
+  constructor(element) {
     super(element)
-    if (this._element.tagName !=='FORM') {
-      throw new TypeError(`Νeed to be initialized in form elements. "${}"`)
+    if (this._element.tagName !== 'FORM') {
+      throw new TypeError(`Need to be initialized in form elements. "${this._element.tagName}" given`)
     }
 
-    this._formFields = {}
+    this._elements = [...this._element.elements]
+
+    this._formFields = this._initializeFields()
   }
 
   static get NAME() {
     return NAME
   }
 
-  set(errors) {
-    this._errors = errors
-    return this
-  }
-
-  get() {
-    return this._errors
+  getFields() {
+    return this._formFields
   }
 
   appendErrors() {
-    this.clear()
-    $.each(this.get(), function (field, txt) {
-      let $input = this._$form.find('[name="' + field + '"]')
-      let $parent = $input.parents('.' + classes.group)
-      $parent.addClass(classes.groupError).append(this.getHelpText(txt))
-      $input.addClass(classes.inputError)
+    this.getFields().forEach(field => {
+      field.appendFirstErrorMsg()
     })
-    return this
   }
 
   clear() {
-    $form.find('.' + classes.group).each(function (i, el) {
-      $(this).removeClass(classes.groupError).find('.' + classes.invalidHelpBlock[0]).remove()
-      $(this).find('.' + classes.inputError).removeClass(classes.inputError)
-      // $(this).removeClass(classes.groupError).find("." + classes.helpBlock).remove();
+    this.getFields().forEach(field => {
+      field.clearAppended()
     })
-    return this
   }
-  autoValidate(event){
-    if (!event.target.checkValidity()) {
-      event.preventDefault()
-      event.stopPropagation()
-    }
 
-    target.classList.add('was-validated')
+  autoValidate() {
+    this._elements.forEach(element => {
+      const field = this._formFields.get(element.id)
+      if (element.checkValidity()) {
+        field.appendFirstSuccessMsg()
+      } else {
+        field.appendFirstErrorMsg()
+      }
+    })
 
+    this._element.classList.add('was-validated')
+  }
+
+  _initializeFields() {
+    const arrayFields = new Map()
+    this._elements.forEach(element => {
+      let { id } = element
+      if (!id) {
+        id = getUID(NAME)
+        element.id = id
+      }
+
+      const field = new Field({
+        name: id,
+        parentForm: this._element
+      })
+      arrayFields.set(id, field)
+    })
+    return arrayFields
   }
 }
 
-EventHandler.on(document, `submit${EVENT_KEY}${DATA_API_KEY}`, SELECTOR_DATA_TOGGLE, event => {
-  const target = getElementFromSelector(event.target)
+EventHandler.on(document, `submit${EVENT_KEY}${DATA_API_KEY}`, '.needs-validation', event => {
+  const { target } = event
+  // SELECTOR_DATA_TOGGLE
+  const data = FormValidation.getInstance(target) || new FormValidation(target)
+  if (target.checkValidity()) {
+    data.clear()
+    return
+  }
 
+  event.preventDefault()
+  event.stopPropagation()
 
-  const data = Data.get(target, DATA_KEY) || new FormValidation(target)
-
-  data.autoValidate(event)
+  data.autoValidate()
 })
 
 export default FormValidation

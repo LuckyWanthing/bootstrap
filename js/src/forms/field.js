@@ -1,39 +1,44 @@
 /**
  * --------------------------------------------------------------------------
- * Bootstrap (v5.0.1): util/backdrop.js
+ * Bootstrap (v5.0.1): util/field.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
  * --------------------------------------------------------------------------
  */
 import SelectorEngine from '../dom/selector-engine'
-import { sanitizeHtml } from '../util/sanitizer'
-import { typeCheckConfig } from '../util'
+import { typeCheckConfig } from '../util/index'
+import Messages from './messages'
+import Manipulator from '../dom/manipulator'
 
-const NAME = 'formField'
+const NAME = 'field'
 const CLASS_ERROR = 'invalid-feedback'
 const CLASS_INFO = 'info-feedback'
 const CLASS_SUCCESS = 'valid-feedback'
 const Default = {
   name: null,
   parentForm: null,
-  template: '<div class="field-feedback"></div>'
+  template: '<div class="field-feedback"></div>',
+  error: '',
+  success: ''
 }
 
 const DefaultType = {
   name: 'string',
   template: 'string',
-  parentForm: 'element'
+  parentForm: 'element',
+  error: 'string',
+  success: 'string'
 }
 
-class FormField {
+class Field {
   constructor(config) {
     this._config = this._getConfig(config)
     if (!this.getField()) {
       throw new TypeError(`field with id:${this._config.name} not found`)
     }
 
-    this._errorMessages = new Set()
-    this._helpMessages = new Set()
-    this._successMessages = new Set()
+    this._errorMessages = new Messages()
+    this._helpMessages = new Messages()
+    this._successMessages = new Messages()
     this._appended = null
   }
 
@@ -63,66 +68,50 @@ class FormField {
     })
   }
 
-  addError(error) {
-    this._errorMessages.add(error)
+  errorMessages() {
+    return this._errorMessages
   }
 
-  addHelp(error) {
-    this._helpMessages.add(error)
+  helpMessages() {
+    return this._helpMessages
   }
 
-  addSuccess(error) {
-    this._successMessages.add(error)
-  }
-
-  getErrorMessages() {
-    return [...this._errorMessages]
-  }
-
-  getHelpMessages() {
-    return [...this._helpMessages]
-  }
-
-  getSuccessMessages() {
-    return [...this._successMessages]
-  }
-
-  getFirstErrorMsg() {
-    return this.getErrorMessages()[0] || null
-  }
-
-  getFirstHelpMsg() {
-    return this.getHelpMessages()[0] || null
-  }
-
-  getFirstSuccessMsg() {
-    return this.getSuccessMessages()[0] || null
+  successMessages() {
+    return this._successMessages
   }
 
   appendFirstErrorMsg() {
-    return this._appended(this.getFirstErrorMsg(), CLASS_ERROR)
+    return this._appended(this.errorMessages().getFirst(), CLASS_ERROR)
   }
 
   appendFirstHelpMsg() {
-    return this._appended(this.getFirstHelpMsg(), CLASS_INFO)
+    return this._appended(this.helpMessages().getFirst(), CLASS_INFO)
   }
 
   appendFirstSuccessMsg() {
-    return this._appended(this.getFirstSuccessMsg(), CLASS_SUCCESS)
+    return this._appended(this.successMessages().getFirst(), CLASS_SUCCESS)
   }
 
   _getConfig(config) {
     config = {
       ...Default,
+      ...Manipulator.getDataAttributes(this.getField()),
       ...(typeof config === 'object' ? config : {})
     }
 
-    config.rootElement = config.rootElement || document.body
+    if (config.error) {
+      this.errorMessages().add(config.error)
+    }
+
+    if (config.success) {
+      this.successMessages().add(config.success)
+    }
+
     typeCheckConfig(NAME, config, DefaultType)
     return config
   }
 
-  _append(text, classAttr = '') {
+  _append(text, classAttr) {
     this.clearAppended()
     const field = this.getField()
     if (!field) {
@@ -144,7 +133,7 @@ class FormField {
     const feedback = element.children[0]
     feedback.classList.add(classAttr)
     feedback.id = this._getId()
-    feedback.innerHTML = sanitizeHtml(text)
+    feedback.innerHTML = text
 
     return feedback
   }
@@ -154,4 +143,4 @@ class FormField {
   }
 }
 
-export default FormField
+export default Field
